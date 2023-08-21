@@ -5,6 +5,8 @@
 # Simply start CARLA and run this script
 #
 
+cd ..
+
 . ".set-env.ps1"
 . ".enter-env.ps1"
 
