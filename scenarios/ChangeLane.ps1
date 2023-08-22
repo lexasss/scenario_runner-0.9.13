@@ -11,7 +11,7 @@ cd ..
 . ".enter-env.ps1"
 
 Start-Process -FilePath "powershell" -ArgumentList "& .\.automatic-control.ps1"
-python scenario_runner.py --scenario ChangeLane_1 --reloadWorld
+python scenario_runner.py --scenario ChangeLane_M --reloadWorld
 
 ""
 "Done"
