@@ -888,9 +888,9 @@ Args:
 - `actor` (carla.Actor): CARLA actor to execute the behavior
 - `reference_actor`(carla.Actor): Reference CARLA actor
 - `distance` (float): Trigger distance between the two actors in meters
-- `distance_type` (str): Specifies how distance should be calculated between the two actors
-- `freespace` (bool): if True distance is calculated between closest boundary points else it will be from center-center
-- `dx`, `dy`, `dz` (float): distance to reference_location (location of reference_actor)
+- `comparison_operator` (operator): comparison operator
+- `distance_type` (str): "cartesianDistance"
+- `freespace` (float): if True distance is calculated between closest boundary points else it will be from center-center
 
 </details>
 

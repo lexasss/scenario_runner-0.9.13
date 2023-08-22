@@ -123,98 +123,20 @@ class ChangeLane(BasicScenario):
         # get Tesla's starting position
         tesla_waypoint, _ = get_waypoint_in_distance(self._reference_waypoint, self._tesla_offset_from_reference)
         self._tesla_transform = carla.Transform(
-            carla.Location(tesla_waypoint.transform.location.x - 5,     # a bit further from the egocar
+            carla.Location(tesla_waypoint.transform.location.x - 20,    # a bit further from the egocar
                            tesla_waypoint.transform.location.y - 3,     # right lane
-                           tesla_waypoint.transform.location.z + 0.5),  # a bit above the road
+                           tesla_waypoint.transform.location.z + 1),    # a bit above the road
             tesla_waypoint.transform.rotation)
 
 
     def _create_behavior(self):
 
-        tesla = self.other_actors[0]
-        ego_car = self.ego_vehicles[0]
+        tesla_sequence = self._create_tesla_behaviour()
+        ego_car_sequence = self._create_ego_car_behaviour()
         
-        # Sequence of Tesla actions, behaviours, triggers
-        
-        tesla_sequence = py_trees.composites.Sequence("Tesla")
-        
-        # Show Tesla in the starting location
-        tesla_visible = ActorTransformSetter(tesla, self._tesla_transform)
-        tesla_sequence.add_child(tesla_visible)
-
-        # Move Tesla on the same lane ...
-        driving_straight = py_trees.composites.Parallel("DrivingUntilTriggerDistance", policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE)
-        
-        lane_follower = WaypointFollower(tesla, self._tesla_velocity)
-        driving_straight.add_child(lane_follower)
-
-        # ... for a certain distance before switching the left blinker on
-        distance_driven_before_lane_change = DriveDistance(tesla, ChangeLane.DISTANCE_TO_DRIVE_BEFORE_LANE_CHANGE)
-        driving_straight.add_child(distance_driven_before_lane_change)
-        
-        tesla_sequence.add_child(driving_straight)
-        
-        # Alternatively, this could be a time, not a distance
-        # tesla_sequence.add_child(TimeOut(40))
-
-        # Even more, the left blinker could be enabled when the egocar reaches Tesla:
-        # driving_straight.add_child(InTriggerDistanceToVehicle(ego_car, tesla, 10))
-
-        # Tesla switched left turn blinking on
-        light_left_on = carla.VehicleLightState(carla.VehicleLightState.LeftBlinker)
-        tesla_sequence.add_child(VehicleLightsControls(tesla, light_status = light_left_on, name="LightsLeftOn"))
-        
-        # Tesla blinks the left turn for 3 second before changing the lane
-        tesla_sequence.add_child(TimeOut(3))
-
-        # Tesla changes 2 lanes at once
-        # Note how the lane changing distance is dependent on the Tesla's speed
-        lane_change = LaneChange(tesla,
-                                 speed = self._tesla_velocity,
-                                 distance_other_lane = self._tesla_velocity * 1.5,
-                                 distance_lane_change = self._tesla_velocity * ChangeLane.LANE_CHANGE_DISTANCE_K,
-                                 lane_changes = 2)
-        tesla_sequence.add_child(lane_change)
-
-        # Tesla switches all lights off
-        light_off = carla.VehicleLightState(carla.VehicleLightState.NONE)
-        tesla_sequence.add_child(VehicleLightsControls(tesla, light_status = light_off, name="LightsOff"))
-
-        # And continues driving on the current (new) lane
-        driving_straight = py_trees.composites.Parallel("DrivingUntilFinished", policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE)
-        
-        lane_follower = WaypointFollower(tesla, self._tesla_velocity)
-        driving_straight.add_child(lane_follower)
-
-        # The trial is over after 10 seconds
-        driving_straight.add_child(TimeOut(5))
-
-        tesla_sequence.add_child(driving_straight)
-
-        #sequence_tesla.add_child(Idle())
-
-        # end of Tesla's behaviour
-        
-
-        # Ego car behaviour        
-        
-        ego_car_sequence = py_trees.composites.Sequence("EgoVehicleAutopilot")
-
-        ego_car_autopilot = ChangeAutoPilot(ego_car, activate = True)
-        ego_car_sequence.add_child(ego_car_autopilot)
-
-        lane_follower = WaypointFollower(ego_car, self._tesla_velocity)
-        ego_car_sequence.add_child(lane_follower)
-
-        ego_car_sequence.add_child(Idle())
-        
-        
-        # Build tree
-
         root = py_trees.composites.Parallel("Parallel Behavior", policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE)
         root.add_child(ego_car_sequence)
         root.add_child(tesla_sequence)
-
         
         return root
 
@@ -235,3 +157,98 @@ class ChangeLane(BasicScenario):
         Remove all actors upon deletion
         """
         self.remove_all_actors()
+
+    def _create_ego_car_behaviour(self):
+        
+        ego_car = self.ego_vehicles[0]
+        tesla = self.other_actors[0]
+
+        ego_car_sequence = py_trees.composites.Sequence("EgoVehicleAutopilot")
+
+        ego_car_autopilot = ChangeAutoPilot(ego_car, activate=True, name="EgoAutoPilot1")
+        ego_car_sequence.add_child(ego_car_autopilot)
+
+        driving_straight = py_trees.composites.Parallel("DriverAutonomousUntilReachTesla", policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE)
+
+        lane_follower = WaypointFollower(ego_car, self._tesla_velocity + 2)
+        driving_straight.add_child(lane_follower)
+
+        distance_to_tesla = InTriggerDistanceToVehicle(tesla, ego_car, distance=10)
+        driving_straight.add_child(distance_to_tesla)
+        
+        ego_car_sequence.add_child(driving_straight)
+        
+        ego_car_manual = ChangeAutoPilot(ego_car, activate=False, name="EgoManualPilot1")
+        ego_car_sequence.add_child(ego_car_manual)
+
+        ego_car_sequence.add_child(Idle(name="EgoIndefiniteDriving"))   
+        
+        return ego_car_sequence
+    
+    def _create_tesla_behaviour(self):
+        
+        ego_car = self.ego_vehicles[0]
+        tesla = self.other_actors[0]
+        
+        # Sequence of Tesla actions, behaviours, triggers
+        
+        tesla_sequence = py_trees.composites.Sequence("Tesla")
+        
+        # Show Tesla in the starting location
+        tesla_visible = ActorTransformSetter(tesla, self._tesla_transform, name="TeslaPlacement")
+        tesla_sequence.add_child(tesla_visible)
+
+        # Move Tesla on the same lane ...
+        driving_straight = py_trees.composites.Parallel("DrivingUntilTriggerDistance", policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE)
+        
+        lane_follower = WaypointFollower(tesla, self._tesla_velocity, name="TeslaLaneDriver1")
+        driving_straight.add_child(lane_follower)
+
+        # ... for a certain distance before switching the left blinker on
+        # distance_driven_before_lane_change = DriveDistance(tesla, ChangeLane.DISTANCE_TO_DRIVE_BEFORE_LANE_CHANGE, name="TeslaDrivingDisance")
+        # driving_straight.add_child(distance_driven_before_lane_change)
+
+        # ... until the ego car appears close enough
+        distance_to_ego = InTriggerDistanceToVehicle(ego_car, tesla, distance=10)
+        driving_straight.add_child(distance_to_ego)
+        
+        tesla_sequence.add_child(driving_straight)
+
+        # Alternatively, this could be a time, not a distance
+        # tesla_sequence.add_child(TimeOut(40))
+
+        # Even more, the left blinker could be enabled when the egocar reaches Tesla:
+        # driving_straight.add_child(InTriggerDistanceToVehicle(ego_car, tesla, 10))
+
+        # Tesla switched left turn blinking on
+        light_left_on = carla.VehicleLightState(carla.VehicleLightState.LeftBlinker)
+        tesla_sequence.add_child(VehicleLightsControls(tesla, light_status = light_left_on, name="TeslaLightsLeftOn"))
+        
+        # Tesla blinks the left turn for 3 second before changing the lane
+        tesla_sequence.add_child(TimeOut(3))
+
+        # Tesla changes 2 lanes at once
+        # Note how the lane changing distance is dependent on the Tesla's speed
+        lane_change = LaneChange(tesla,
+                                 speed = self._tesla_velocity,
+                                 distance_other_lane = self._tesla_velocity * 1.5,
+                                 distance_lane_change = self._tesla_velocity * ChangeLane.LANE_CHANGE_DISTANCE_K,
+                                 lane_changes = 2)
+        tesla_sequence.add_child(lane_change)
+
+        # Tesla switches all lights off
+        light_off = carla.VehicleLightState(carla.VehicleLightState.NONE)
+        tesla_sequence.add_child(VehicleLightsControls(tesla, light_status=light_off, name="TeslaLaneDriver1"))
+
+        # And continues driving on the current (new) lane
+        driving_straight = py_trees.composites.Parallel("TeslaDrivingUntilFinished", policy=py_trees.common.ParallelPolicy.SUCCESS_ON_ONE)
+        
+        lane_follower = WaypointFollower(tesla, self._tesla_velocity, name="TeslaLaneDriver2")
+        driving_straight.add_child(lane_follower)
+
+        # The trial is over after 10 seconds
+        driving_straight.add_child(TimeOut(5))
+
+        tesla_sequence.add_child(driving_straight)
+        
+        return tesla_sequence
