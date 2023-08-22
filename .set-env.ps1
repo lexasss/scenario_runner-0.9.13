@@ -6,7 +6,7 @@ if (-Not (Test-Path -Path $carla)) {
     exit
 }
 
-if (-Not (Test-Path -Path $carla)) {
+if (-Not (Test-Path -Path $srunner)) {
     "SRunner's root folder specified in `.enter-env.ps1` is not valid."
     exit
 }
