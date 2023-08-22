@@ -3,6 +3,8 @@ if (-Not (Test-Path -Path "./.venv")) {
   python -m venv .\.venv
   
   ""
+  "Activating the environment"
+
   .\.venv\Scripts\activate
   
   ""
@@ -12,9 +14,6 @@ if (-Not (Test-Path -Path "./.venv")) {
   ""
   "Installing dependencies. . ."
   pip install -r requirements.txt
-
-  ""
-  "Activating environment"
 
   ""
   "Starting the script"
