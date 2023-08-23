@@ -393,7 +393,8 @@ class ScenarioRunner(object):
                                           self.ego_vehicles,
                                           config,
                                           self._args.randomize,
-                                          self._args.debug)
+                                          self._args.debug,
+                                          params=self._args.params)
         except Exception as exception:                  # pylint: disable=broad-except
             print("The scenario cannot be loaded")
             traceback.print_exc()
@@ -567,6 +568,7 @@ def main():
     parser.add_argument('--randomize', action="store_true", help='Scenario parameters are randomized')
     parser.add_argument('--repetitions', default=1, type=int, help='Number of scenario executions')
     parser.add_argument('--waitForEgo', action="store_true", help='Connect the scenario to an existing ego vehicle')
+    parser.add_argument('--params', default='', help='Any custom parameters to pass to the scanario')
 
     arguments = parser.parse_args()
     # pylint: enable=line-too-long
