@@ -11,7 +11,7 @@ cd ..
 . ".enter-env.ps1"
 
 Start-Process -FilePath "powershell" -ArgumentList "& .\.driving-ui.ps1"
-python scenario_runner.py --scenario ChangeLane_M --reloadWorld --waitForEgo
+python scenario_runner.py --scenario ChangeLane_Dreyevr --reloadWorld --waitForEgo
 
 ""
 "Done"
