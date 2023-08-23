@@ -72,6 +72,8 @@ class DebugCheckPoint(AtomicBehavior):
     - actor: the vehicle that we are changing the light_status for
     """
 
+    is_enabled = True
+    
     def __init__(self, actor, name="CheckPoint"):
         super(DebugCheckPoint, self).__init__(name)
         self.logger.debug("%s.__init__()" % (self.__class__.__name__))
@@ -79,9 +81,9 @@ class DebugCheckPoint(AtomicBehavior):
         self._actor = actor
 
     def update(self):
-        print(f'CHECKPOINT [{self._actor.type_id}] {self.name}')
-        new_status = py_trees.common.Status.SUCCESS
-        return new_status
+        if DebugCheckPoint.is_enabled:
+            print(f'CHECKPOINT [{self._actor.type_id}] {self.name}')
+        return py_trees.common.Status.SUCCESS
     
     def initialise(self):
         return
@@ -102,6 +104,7 @@ class ChangeLane(BasicScenario):
     TESLA_OFFSET_FROM_REFERENCE = 5                     # meters
     SAFE_DISTANCE_BETWEEN_CARS_ON_LANE_CHANGE = 23      # meters
     UNSAFE_DISTANCE_BETWEEN_CARS_ON_LANE_CHANGE = 10    # meters
+    EGO_CAR_APPROACH_VELOCITY = 2   # m/s
 
     # Lane change distance coefficient applied to Tesla's velocity:
     #   5.8 for normal
@@ -125,7 +128,7 @@ class ChangeLane(BasicScenario):
 
         self._tesla_offset_from_reference = ChangeLane.TESLA_OFFSET_FROM_REFERENCE
         self._tesla_velocity = ChangeLane.TESLA_VELOCITY
-        self._egocar_velocity = ChangeLane.TESLA_VELOCITY + 2
+        self._egocar_velocity = ChangeLane.TESLA_VELOCITY + ChangeLane.EGO_CAR_APPROACH_VELOCITY
         self._distance_between_cars_on_lane_change = ChangeLane.UNSAFE_DISTANCE_BETWEEN_CARS_ON_LANE_CHANGE
 
         if randomize:
