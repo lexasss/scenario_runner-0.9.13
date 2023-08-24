@@ -33,7 +33,7 @@ from srunner.scenarios.basic_scenario import BasicScenario
 from srunner.tools.scenario_helper import get_waypoint_in_distance
 
 
-class ChangeLane(BasicScenario):
+class ChangeLaneOriginal(BasicScenario):
 
     """
     This class holds everything required for a "change lane" scenario involving three vehicles.
@@ -70,7 +70,7 @@ class ChangeLane(BasicScenario):
         self.direction = 'left'  # direction of lane change
         self.lane_check = 'true'  # check whether a lane change is possible
 
-        super(ChangeLane, self).__init__("ChangeLane",
+        super(ChangeLaneOriginal, self).__init__("ChangeLaneOriginal",
                                          ego_vehicles,
                                          config,
                                          world,
