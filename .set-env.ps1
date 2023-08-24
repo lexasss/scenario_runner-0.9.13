@@ -7,12 +7,12 @@ if ($env:computername -eq 'DESKTOP-6F2MBAF') {
 }
 
 if (-Not (Test-Path -Path $carla)) {
-    "CARLA's root folder specified in `.enter-env.ps1` is not valid."
+    "CARLA's root folder specified in `.set.ps1` is not valid."
     exit
 }
 
 if (-Not (Test-Path -Path $srunner)) {
-    "SRunner's root folder specified in `.enter-env.ps1` is not valid."
+    "ScenarioRunner's root folder specified in `.set-env.ps1` is not valid."
     exit
 }
 

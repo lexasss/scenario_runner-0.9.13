@@ -1,8 +1,6 @@
 # This is the script to run ChangeLane scanario defined in the
 #    srunner\tasks\change_lane.py and
 #    srunner\examples\ChangeLane.xml files
-#
-# Simply start CARLA and run this script
 
 function Get-Task
 {
@@ -38,7 +36,7 @@ function Get-Task
 Set-Location ..
 
 . ".set-env.ps1"
-. ".enter-env.ps1"
+. ".enter-venv.ps1"
 
 $task = Get-Task
 if ($task -gt 0)
