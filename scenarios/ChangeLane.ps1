@@ -50,4 +50,4 @@ if ($task -gt 0)
     "Done"
 }
 
-Set-Location tasks
+Set-Location scenarios
