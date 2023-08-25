@@ -28,12 +28,16 @@ from srunner.scenariomanager.scenarioatomics.atomic_behaviors import (ActorTrans
                                                                       Idle, AtomicBehavior,
                                                                       ChangeAutoPilot)
 # from srunner.scenariomanager.scenarioatomics.atomic_criteria import CollisionTest
-from srunner.scenariomanager.scenarioatomics.atomic_trigger_conditions import InTriggerDistanceToVehicle
+from srunner.scenariomanager.scenarioatomics.atomic_trigger_conditions import (InTriggerDistanceToVehicle,
+                                                                               AtomicCondition)
 from srunner.scenarios.basic_scenario import BasicScenario
 from srunner.tools.scenario_helper import get_waypoint_in_distance
 
 from srunner.scenariomanager.timer import TimeOut
 
+from pygame.locals import (K_UP, K_DOWN, K_LEFT, K_RIGHT, K_w, K_a, K_s, K_d)
+
+from net.tcp_client import TcpClient
 
 class VehicleLightsControls(AtomicBehavior):
     """
@@ -63,6 +67,58 @@ class VehicleLightsControls(AtomicBehavior):
     def initialise(self):
         return
 
+class ControlKeyPressCondition(AtomicCondition):
+
+    """
+    Connects to the server that is running in manual_control.py
+    and await for the control key press
+
+    Important parameters:
+    - name: Name of the atomic condition
+    """
+
+    def __init__(self, name):
+        """
+        Setup parameters
+        """
+        super(AtomicCondition, self).__init__(name)
+        self._last_pressed_key = 0
+
+    def initialise(self):
+        """
+        TCP client initialization
+        """
+        self._tcp_client = TcpClient("localhost")
+        self._tcp_client.connect(self._handle_net_request)
+
+        super(ControlKeyPressCondition, self).initialise()
+
+    def terminate(self, new_status):
+        """
+        TCP client termination
+        """
+        if new_status == py_trees.common.Status.SUCCESS:
+            self._tcp_client.close()
+            
+        super(ControlKeyPressCondition, self).terminate(new_status)
+
+    def update(self):
+        """
+        Check if a control key was pressed
+        """
+        new_status = py_trees.common.Status.RUNNING
+
+        if self._last_pressed_key in (K_UP, K_DOWN, K_LEFT, K_RIGHT, K_w, K_a, K_s, K_d):
+            new_status = py_trees.common.Status.SUCCESS
+            
+        return new_status
+    
+    def _handle_net_request(self, req: str) -> None:
+        try:
+            self._last_pressed_key = int(req)
+        except:
+            print(f'NaN: {req}')
+
 class DebugCheckPoint(AtomicBehavior):
     """
     A class to print out a message that scanario proceeded to a next step
@@ -84,9 +140,6 @@ class DebugCheckPoint(AtomicBehavior):
         if DebugCheckPoint.is_enabled:
             print(f'CHECKPOINT [{self._actor.type_id}] {self.name}')
         return py_trees.common.Status.SUCCESS
-    
-    def initialise(self):
-        return
 
 class ChangeLane(BasicScenario):
 
@@ -251,11 +304,18 @@ class ChangeLane(BasicScenario):
         drive_until_tesla_reached.add_child(p1)
 
         # ...until tesla is close enough
-        p2 = py_trees.composites.Sequence("p2")
-        distance_to_tesla = InTriggerDistanceToVehicle(tesla, ego_car, distance=self._distance_between_cars_on_lane_change - 1, name="EgoToTeslaDistance1")
-        p2.add_child(distance_to_tesla)
-        p2.add_child(DebugCheckPoint(ego_car, "waiting for reaching Tesla..."))
-        drive_until_tesla_reached.add_child(p2)
+        # p2 = py_trees.composites.Sequence("p2")
+        # distance_to_tesla = InTriggerDistanceToVehicle(tesla, ego_car, distance=self._distance_between_cars_on_lane_change - 1, name="EgoToTeslaDistance1")
+        # p2.add_child(distance_to_tesla)
+        # p2.add_child(DebugCheckPoint(ego_car, "waiting for reaching Tesla..."))
+        # drive_until_tesla_reached.add_child(p2)
+
+        # ...until some key is pressed
+        p3 = py_trees.composites.Sequence("p3")
+        control_key_pressed = ControlKeyPressCondition(name="EgoKeyPressed1")
+        p3.add_child(control_key_pressed)
+        p3.add_child(DebugCheckPoint(ego_car, "key pressed..."))
+        drive_until_tesla_reached.add_child(p3)
         
         ego_car_sequence.add_child(drive_until_tesla_reached)
         ego_car_sequence.add_child(DebugCheckPoint(ego_car, "Tesla reached"))
@@ -323,7 +383,7 @@ class ChangeLane(BasicScenario):
         # ... until the ego car appears close enough
         distance_to_ego = InTriggerDistanceToVehicle(ego_car, tesla, distance=self._distance_between_cars_on_lane_change, name="TeslaToEgoDistance1")
         driving_straight.add_child(distance_to_ego)
-        
+
         tesla_sequence.add_child(driving_straight)
 
         if show_lights:

@@ -98,6 +98,7 @@ try:
 except ImportError:
     raise RuntimeError('cannot import numpy, make sure numpy package is installed')
 
+from net.tcp_server import TcpServer
 
 # ==============================================================================
 # -- Global functions ----------------------------------------------------------
@@ -221,11 +222,12 @@ class World(object):
 
 class KeyboardControl(object):
     """Class that handles keyboard input."""
-    def __init__(self, world, start_in_autopilot):
+    def __init__(self, world, start_in_autopilot, server):
         self._autopilot_enabled = start_in_autopilot
         self._control = carla.VehicleControl()
         self._lights = carla.VehicleLightState.NONE
         self._steer_cache = 0.0
+        self._server = server
         world.player.set_autopilot(self._autopilot_enabled)
         world.player.set_light_state(self._lights)
         world.hud.notification("Press 'H' or '?' for help.", seconds=4.0)
@@ -329,6 +331,8 @@ class KeyboardControl(object):
                     current_lights ^= carla.VehicleLightState.LeftBlinker
                 elif event.key == K_x:
                     current_lights ^= carla.VehicleLightState.RightBlinker
+            elif event.type == pygame.KEYDOWN:        
+                self._server.send(f"{event.key}")
 
         if not self._autopilot_enabled:
             self._parse_vehicle_keys(pygame.key.get_pressed(), clock.get_time())
@@ -901,6 +905,9 @@ def game_loop(args):
     pygame.font.init()
     world = None
 
+    tcp_server = TcpServer()
+    tcp_server.start()
+
     try:
         client = carla.Client(args.host, args.port)
         client.set_timeout(20.0)
@@ -914,7 +921,7 @@ def game_loop(args):
 
         hud = HUD(args.width, args.height)
         world = World(sim_world, hud, args)
-        controller = KeyboardControl(world, args.autopilot)
+        controller = KeyboardControl(world, args.autopilot, tcp_server)
 
         sim_world.wait_for_tick()
 
@@ -930,6 +937,8 @@ def game_loop(args):
 
     finally:
 
+        tcp_server.close()
+        
         if (world and world.recording_enabled):
             client.stop_recorder()
 

@@ -11,3 +11,4 @@ matplotlib
 six
 simple-watchdog-timer
 pygame
+event_bus
